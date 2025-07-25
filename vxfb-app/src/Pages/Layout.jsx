@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Boxes, History, Bell, User as UserIcon } from "lucide-react";
+import { useAuth } from "../useAuth";
 
 // 🔧 Simple mock components to replace missing UI imports
 const Button = ({ children, className = "", ...props }) => (
@@ -27,6 +28,34 @@ const Sidebar = ({ projects, isLoading }) => {
   const location = useLocation();
   const urlParams = new URLSearchParams(location.search);
   const currentProjectId = urlParams.get("id");
+  const { user, isLoggedIn, logout } = useAuth();
+  const navigate = useNavigate();
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  const handleProfileClick = () => {
+    setMenuOpen((open) => !open);
+  };
+
+  const handleSignOut = () => {
+    logout();
+    setMenuOpen(false);
+    navigate("/login");
+  };
+
+  const handleProfileNav = () => {
+    setMenuOpen(false);
+    navigate("/profile");
+  };
+
+  // Close menu on outside click
+  useEffect(() => {
+    if (!menuOpen) return;
+    const handleClick = (e) => {
+      if (!e.target.closest(".profile-menu")) setMenuOpen(false);
+    };
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [menuOpen]);
 
   return (
     <aside className="w-64 bg-gray-900 text-gray-300 flex flex-col border-r border-gray-700">
@@ -63,13 +92,35 @@ const Sidebar = ({ projects, isLoading }) => {
         </nav>
       </div>
       <div className="mt-auto p-4 border-t border-gray-700">
-        <div className="flex items-center gap-3">
-          <Avatar>
-            <AvatarFallback>U</AvatarFallback>
-          </Avatar>
-          <div>
-            <p className="text-sm font-medium text-white">user@email.com</p>
-          </div>
+        <div className="flex items-center gap-3 relative">
+          <button
+            className="focus:outline-none flex items-center gap-3"
+            onClick={handleProfileClick}
+            style={{ background: "none", border: "none", padding: 0 }}
+          >
+            <Avatar>
+              <AvatarFallback>{user?.email?.[0]?.toUpperCase() || "G"}</AvatarFallback>
+            </Avatar>
+            <span className="text-sm font-medium text-white">
+              {isLoggedIn && user?.email ? user.email : "Guest"}
+            </span>
+          </button>
+          {menuOpen && (
+            <div className="profile-menu absolute left-0 bottom-12 bg-gray-800 border border-gray-700 rounded shadow-lg z-50 min-w-[140px]">
+              <button
+                className="block w-full text-left px-4 py-2 text-sm hover:bg-gray-700 text-white"
+                onClick={handleProfileNav}
+              >
+                Profile
+              </button>
+              <button
+                className="block w-full text-left px-4 py-2 text-sm hover:bg-gray-700 text-red-400"
+                onClick={handleSignOut}
+              >
+                Sign out
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </aside>
