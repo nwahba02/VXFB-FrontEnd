@@ -1,0 +1,30 @@
+{
+  "name": "Project",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "The name of the video project"
+    },
+    "video_url": {
+      "type": "string",
+      "description": "URL of the uploaded video file"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "processing",
+        "completed",
+        "draft"
+      ],
+      "default": "draft"
+    },
+    "category": {
+      "type": "string",
+      "description": "The selected video category or style"
+    }
+  },
+  "required": [
+    "name"
+  ]
+}
