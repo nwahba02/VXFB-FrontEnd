@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { Boxes, History, Bell, User as UserIcon } from "lucide-react";
+import { Boxes, History, Bell, User as UserIcon, Plus, MoreVertical } from "lucide-react";
 import { useAuth } from "../useAuth";
 
 // 🔧 Simple mock components to replace missing UI imports
@@ -24,13 +24,14 @@ const AvatarFallback = ({ children }) => children;
 // 🛠 createPageUrl mock (just returns a path for now)
 const createPageUrl = (path) => (path === "Home" ? "/" : `/${path}`);
 
-const Sidebar = ({ projects, isLoading }) => {
+const Sidebar = ({ projects, isLoading, onProjectAction, editingProject, editName, setEditName, onRenameSave, onRenameCancel }) => {
   const location = useLocation();
   const urlParams = new URLSearchParams(location.search);
   const currentProjectId = urlParams.get("id");
   const { user, isLoggedIn, logout } = useAuth();
   const navigate = useNavigate();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [projectMenuOpen, setProjectMenuOpen] = useState(null);
 
   const handleProfileClick = () => {
     setMenuOpen((open) => !open);
@@ -47,15 +48,34 @@ const Sidebar = ({ projects, isLoading }) => {
     navigate("/profile");
   };
 
-  // Close menu on outside click
+  const handleCreateProject = () => {
+    navigate("/");
+  };
+
+  const handleProjectMenuClick = (projectId, e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setProjectMenuOpen(projectMenuOpen === projectId ? null : projectId);
+  };
+
+  const handleProjectAction = (action, projectId) => {
+    console.log('Sidebar handleProjectAction called:', action, projectId);
+    setProjectMenuOpen(null);
+    onProjectAction(action, projectId);
+  };
+
+  // Close menus on outside click
   useEffect(() => {
-    if (!menuOpen) return;
+    if (!menuOpen && projectMenuOpen === null) return;
     const handleClick = (e) => {
-      if (!e.target.closest(".profile-menu")) setMenuOpen(false);
+      if (!e.target.closest(".profile-menu") && !e.target.closest(".project-menu")) {
+        setMenuOpen(false);
+        setProjectMenuOpen(null);
+      }
     };
     document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
-  }, [menuOpen]);
+  }, [menuOpen, projectMenuOpen]);
 
   return (
     <aside className="w-64 bg-gray-900 text-gray-300 flex flex-col border-r border-gray-700">
@@ -69,25 +89,107 @@ const Sidebar = ({ projects, isLoading }) => {
       </div>
       <div className="p-4">
         <div className="mb-4">
-          <div className="flex items-center gap-2 bg-gray-800 px-3 py-2 rounded-md">
-            <Boxes className="w-4 h-4 text-gray-400" />
-            <h2 className="text-sm font-semibold text-white">Projects</h2>
+          <div className="flex items-center justify-between bg-gray-800 px-3 py-2 rounded-md">
+            <div className="flex items-center gap-2">
+              <Boxes className="w-4 h-4 text-gray-400" />
+              <h2 className="text-sm font-semibold text-white">Projects</h2>
+            </div>
+            <button
+              onClick={handleCreateProject}
+              className="hover:bg-gray-700 p-1 rounded transition-colors"
+              title="Create New Project"
+            >
+              <Plus className="w-4 h-4 text-gray-400 hover:text-white" />
+            </button>
           </div>
         </div>
 
-        <nav className="space-y-2">
+        <nav className="space-y-3">
           {projects.map((project) => (
-            <Link
-              key={project.id}
-              to={`/Editor?id=${project.id}`}
-              className={`block w-full text-left px-3 py-2 text-sm transition-all duration-150 ${
-                currentProjectId === project.id
-                  ? "bg-[#333333] text-white border-l-4 border-pink-500"
-                  : "hover:bg-gray-200 hover:text-gray-900 hover:rounded-full hover:px-4"
-              }`}
-            >
-              {project.name}
-            </Link>
+            <div key={project.id} className="relative group">
+              <Link
+                to={`/Editor?id=${project.id}`}
+                className={`block w-full text-left p-3 rounded-lg transition-all duration-150 ${
+                  currentProjectId === project.id
+                    ? "bg-[#333333] text-white border-l-4 border-pink-500"
+                    : "hover:bg-gray-800"
+                }`}
+              >
+                <div className="flex items-start gap-3">
+                  <div className="text-2xl flex-shrink-0">{project.thumbnail}</div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between mb-1">
+                      {editingProject === project.id ? (
+                        <div className="flex items-center gap-2 flex-1">
+                          <input
+                            type="text"
+                            value={editName}
+                            onChange={(e) => setEditName(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') onRenameSave(project.id);
+                              if (e.key === 'Escape') onRenameCancel();
+                            }}
+                            className="text-sm font-medium bg-transparent border-b border-gray-500 focus:border-pink-500 outline-none w-32"
+                            autoFocus
+                          />
+                        </div>
+                      ) : (
+                        <h3 className="text-sm font-medium truncate">{project.name}</h3>
+                      )}
+                      <div className="relative flex-shrink-0">
+                        <button
+                          onClick={(e) => handleProjectMenuClick(project.id, e)}
+                          className="project-menu p-1 hover:bg-gray-700 rounded opacity-0 group-hover:opacity-100 transition-opacity"
+                        >
+                          <MoreVertical className="w-3 h-3" />
+                        </button>
+                        
+                        {projectMenuOpen === project.id && (
+                          <div className="project-menu absolute right-0 top-full mt-1 bg-gray-800 border border-gray-700 rounded shadow-lg z-50 min-w-[120px] max-w-[200px]">
+                            <button
+                              className="block w-full text-left px-3 py-2 text-sm hover:bg-gray-700 text-white"
+                              onClick={() => handleProjectAction('rename', project.id)}
+                            >
+                              Rename
+                            </button>
+                            <button
+                              className="block w-full text-left px-3 py-2 text-sm hover:bg-gray-700 text-white"
+                              onClick={() => handleProjectAction('export', project.id)}
+                            >
+                              Export
+                            </button>
+                            <button
+                              className="block w-full text-left px-3 py-2 text-sm hover:bg-gray-700 text-white"
+                              onClick={() => handleProjectAction('duplicate', project.id)}
+                            >
+                              Duplicate
+                            </button>
+                            <div className="border-t border-gray-700"></div>
+                            <button
+                              className="block w-full text-left px-3 py-2 text-sm hover:bg-gray-700 text-red-400"
+                              onClick={() => handleProjectAction('delete', project.id)}
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    <div className="text-xs text-gray-400 space-y-0.5">
+                      <div>{project.lastModified}</div>
+                      <div>{project.size} • {project.duration}</div>
+                      <div className={`text-xs px-1.5 py-0.5 rounded-full inline-block ${
+                        project.status === 'Complete' ? 'bg-green-900 text-green-300' :
+                        project.status === 'Processing' ? 'bg-yellow-900 text-yellow-300' :
+                        'bg-gray-700 text-gray-300'
+                      }`}>
+                        {project.status}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </Link>
+            </div>
           ))}
         </nav>
       </div>
@@ -324,19 +426,96 @@ const Header = () => {
 export default function Layout({ children }) {
   const [projects, setProjects] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [editingProject, setEditingProject] = useState(null);
+  const [editName, setEditName] = useState("");
 
   // Mocked project list for now
   useEffect(() => {
     setIsLoading(true);
     setTimeout(() => {
       setProjects([
-        { id: "1", name: "Project One" },
-        { id: "2", name: "Project Two" },
-        { id: "3", name: "Project Three" },
+        { 
+          id: "1", 
+          name: "Project One",
+          lastModified: "2 hours ago",
+          size: "45.2 MB",
+          duration: "2:34",
+          thumbnail: "🎬",
+          status: "Complete"
+        },
+        { 
+          id: "2", 
+          name: "Project Two",
+          lastModified: "1 day ago",
+          size: "128.7 MB",
+          duration: "5:12",
+          thumbnail: "🎥",
+          status: "Processing"
+        },
+        { 
+          id: "3", 
+          name: "Project Three",
+          lastModified: "3 days ago",
+          size: "67.3 MB",
+          duration: "1:45",
+          thumbnail: "📹",
+          status: "Draft"
+        },
       ]);
       setIsLoading(false);
     }, 500);
   }, []);
+
+  const handleProjectAction = (action, projectId) => {
+    console.log('handleProjectAction called:', action, projectId);
+    switch(action) {
+      case 'rename': {
+        const project = projects.find(p => p.id === projectId);
+        console.log('Renaming project:', project);
+        setEditingProject(projectId);
+        setEditName(project.name);
+        break;
+      }
+      case 'export':
+        // Handle export
+        console.log('Export project:', projectId);
+        break;
+      case 'duplicate': {
+        const projectToDuplicate = projects.find(p => p.id === projectId);
+        console.log('Duplicating project:', projectToDuplicate);
+        const newProject = {
+          ...projectToDuplicate,
+          id: Date.now().toString(),
+          name: `${projectToDuplicate.name} (Copy)`,
+          lastModified: "Just now",
+          status: "Draft"
+        };
+        setProjects(prev => [...prev, newProject]);
+        break;
+      }
+      case 'delete':
+        console.log('Deleting project:', projectId);
+        if (window.confirm('Are you sure you want to delete this project?')) {
+          setProjects(prev => prev.filter(p => p.id !== projectId));
+        }
+        break;
+    }
+  };
+
+  const handleRenameSave = (projectId) => {
+    if (editName.trim()) {
+      setProjects(prev => prev.map(p => 
+        p.id === projectId ? { ...p, name: editName.trim(), lastModified: "Just now" } : p
+      ));
+    }
+    setEditingProject(null);
+    setEditName("");
+  };
+
+  const handleRenameCancel = () => {
+    setEditingProject(null);
+    setEditName("");
+  };
 
   return (
     <>
@@ -360,7 +539,16 @@ export default function Layout({ children }) {
         }
       `}</style>
       <div className="h-screen flex text-white overflow-hidden">
-        <Sidebar projects={projects} isLoading={isLoading} />
+        <Sidebar 
+          projects={projects} 
+          isLoading={isLoading} 
+          onProjectAction={handleProjectAction} 
+          editingProject={editingProject} 
+          editName={editName} 
+          setEditName={setEditName} 
+          onRenameSave={handleRenameSave} 
+          onRenameCancel={handleRenameCancel}
+        />
         <div className="flex-1 flex flex-col">
           <Header />
           <main className="flex-1 p-6 overflow-y-auto">
